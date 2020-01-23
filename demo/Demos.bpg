@@ -1,0 +1,60 @@
+#------------------------------------------------------------------------------
+VERSION = BWS.01
+#------------------------------------------------------------------------------
+!ifndef ROOT
+ROOT = $(MAKEDIR)\..
+!endif
+#------------------------------------------------------------------------------
+MAKE = $(ROOT)\bin\make.exe -$(MAKEFLAGS) -f$**
+DCC = $(ROOT)\bin\dcc32.exe $**
+BRCC = $(ROOT)\bin\brcc32.exe $**
+#------------------------------------------------------------------------------
+PROJECTS = AcroForm.exe alpha.exe CJK.exe Demo.exe DigitalSignature.exe DigSignEmpty.exe forms.exe ImageCompression.exe JBIG2.exe \
+  LargeFile.exe Layer.exe Patterns.exe PDFA.exe Security.exe
+#------------------------------------------------------------------------------
+default: $(PROJECTS)
+#------------------------------------------------------------------------------
+
+AcroForm.exe: AcroForm.dpr
+  $(DCC)
+
+alpha.exe: alpha.dpr
+  $(DCC)
+
+CJK.exe: CJK.dpr
+  $(DCC)
+
+Demo.exe: Demo.dpr
+  $(DCC)
+
+DigitalSignature.exe: DigitalSignature.dpr
+  $(DCC)
+
+DigSignEmpty.exe: DigSignEmpty.dpr
+  $(DCC)
+
+forms.exe: forms.dpr
+  $(DCC)
+
+ImageCompression.exe: ImageCompression.dpr
+  $(DCC)
+
+JBIG2.exe: JBIG2.dpr
+  $(DCC)
+
+LargeFile.exe: LargeFile.dpr
+  $(DCC)
+
+Layer.exe: Layer.dpr
+  $(DCC)
+
+Patterns.exe: Patterns.dpr
+  $(DCC)
+
+PDFA.exe: PDFA.dpr
+  $(DCC)
+
+Security.exe: Security.dpr
+  $(DCC)
+
+
