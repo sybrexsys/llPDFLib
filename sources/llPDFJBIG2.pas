@@ -856,3 +856,308 @@ begin
   Inc(UseTime[idx].Value);
 end;
 
+
+
+function TJBIG2Compression.AddSymbol: Integer;
+var
+  Delta, Capacity: Cardinal;
+begin
+  Capacity := Length(FSymbols);
+  if Capacity = FSymbolsSize then
+  begin
+    if Capacity > 64 then
+      Delta := Capacity shr 2
+    else
+      if Capacity > 8 then
+        Delta := 16
+      else
+        Delta := 4;
+    SetLength(FSymbols, Capacity + Delta);
+  end;
+  Result := FSymbolsSize;
+  inc(FSymbolsSize);
+end;
+
+{ TJBig2SymbolDictionary }
+
+function TJBig2SymbolDictionary.AddDictionary: Integer;
+var
+  Delta, Capacity: Cardinal;
+begin
+  Capacity := Length(FDictionary);
+  if Capacity = FDictionarySize then
+  begin
+    if Capacity > 64 then
+      Delta := Capacity shr 2
+    else
+      if Capacity > 8 then
+        Delta := 16
+      else
+        Delta := 4;
+    SetLength(FDictionary, Capacity + Delta);
+  end;
+  Result := FDictionarySize;
+  inc(FDictionarySize);
+end;
+
+procedure TJBig2SymbolDictionary.Clear;
+begin
+  ClearDictionary;
+  if Eng <> nil then
+    RegenerateID;
+end;
+
+procedure TJBig2SymbolDictionary.ClearDictionary;
+var
+  I: Integer;
+begin
+  for i:= 0 to FDictionarySize -1 do
+    FDictionary[i].Image.Free;
+  FDictionarySize := 0;
+  FDictionary := nil;
+  FDictionaryWidth := 0;
+  FMaxH := 0;
+end;
+
+constructor TJBig2SymbolDictionary.Create(Engine: TPDFEngine;JBIG2Options: TJBIG2Options);
+begin
+  inherited Create(Engine);
+  FJBIG2Options:= JBIG2Options;
+  FMaxH := 0;
+end;
+
+destructor TJBig2SymbolDictionary.Destroy;
+begin
+  ClearDictionary;
+  inherited;
+end;
+
+function TJBig2SymbolDictionary.FindTemplate(Symbol: TBWImage): Integer;
+var
+  I,j: Integer ;
+  WorkBMP: TBWImage;
+  w,h: Integer;
+  start: TImgPoint;
+  fnd: Boolean;
+begin
+  Result := -1;
+  WorkBMP := nil;
+  try
+    for i := 0 to FDictionarySize - 1 do
+    begin
+      if (FDictionary[i].Image.Width <> Symbol.Width) or (FDictionary[i].Image.Height <> Symbol.Height) then
+        Continue;
+      if not assigned(WorkBMP) then
+        WorkBMP := TBWImage.Create(Symbol.Width,Symbol.Height);
+      for j := 0 to WorkBMP.MemorySize - 1 do
+        WorkBMP.Memory[j] := Symbol.Memory[j] xor FDictionary[i].Image.Memory[j];
+      WorkBMP.InitBlackPoint(Start);
+
+      if not WorkBMP.GetBlackPoint(Start) then
+      begin
+        Result := i;
+        Exit;
+      end;
+      fnd := false;
+      for h := start.y to WorkBMP.Height - 1 do
+      begin
+        if h = start.y then
+          j := start.x
+        else
+          j := 0;
+        for w := j to WorkBMP.Width - 1 do
+          if WorkBMP.CheckNeighbor(w,h,FJBIG2Options.LossyLevel) then
+          begin
+            fnd := true;
+            break;
+          end;
+        if fnd then
+          break;
+      end;
+      if not Fnd then
+      begin
+        result := i;
+        Break;
+      end;
+    end;
+  finally
+    WorkBMP.Free;
+  end;
+  if Result < 0 then
+    Result := PlaceNewSymbol(Symbol);
+end;
+
+
+function TJBig2SymbolDictionary.PlaceNewSymbol(Symbol: TBWImage): Integer;
+var
+  I: Integer;
+begin
+  I:= AddDictionary;
+  FDictionary[i].Image := TBWImage.CreateCopy(Symbol);
+  FDictionary[i].Dw := Symbol.Width - FTotalWidth;
+  FTotalWidth := FTotalWidth + FDictionary[i].Dw;
+  inc(FDictionaryWidth, Symbol.Width);
+  if FMaxH < Symbol.Height then
+    FMaxH := Symbol.Height;
+  Result := i;
+//  Symbol.SaveToFile('..\Data\Symbols\'+inttostr(i)+'.bmp');
+end;
+
+
+function TJBig2SymbolDictionary.GeneratePicture: TBitmap;
+var
+  i: Integer;
+  WidthOffset: Integer;
+  DictPicture:TBWImage;
+begin
+  WidthOffset := 0;
+  DictPicture := TBWImage.Create(FDictionaryWidth,FMaxH);
+  try
+    for i := 0 to FDictionarySize - 1 do
+    begin
+      FDictionary[i].Image.CopyRectangleTo(DictPicture,0,0,WidthOffset,0,FDictionary[i].Image.Width,FDictionary[i].Image.Height);
+      inc(WidthOffset,FDictionary[i].Image.Width);
+    end;
+    Result := TBitmap.Create;
+    DictPicture.CopyToBitmap(Result);
+  finally
+    DictPicture.Free;
+  end;
+end;
+
+procedure TJBig2SymbolDictionary.Save;
+var
+  MS: TMemoryStream;
+begin
+  MS := TMemoryStream.Create;
+  try
+    SaveSymbolDictionary(MS); 
+    Eng.StartObj(ID);
+    Eng.SaveToStream ( '/Length ' + IStr ( CalcAESSize( Eng.SecurityInfo.State,MS.Size ) ) );
+    Eng.StartStream;
+    CryptStream(MS);
+    Eng.CloseStream;
+  finally
+    MS.Free;
+  end;
+end;
+
+procedure TJBig2SymbolDictionary.SaveSymbolDictionary(Stream: TStream);
+var
+  i, h: Integer;
+  Content: TMemoryStream;
+  Bits,BitStrm: TBitStream;
+  BmData: TMemoryStream;
+  Pict: TBitmap;
+begin
+  BitStrm := TBitStream.Create(Stream);
+  try
+    Content := TMemoryStream.Create;
+    try
+      Bits := TBitStream.Create(Content);
+      try
+        Bits.Write(@BLHeader,2);
+        Bits.Put(FDictionarySize,32);
+        Bits.Put(FDictionarySize,32);
+        for i := 1 to 5 do
+        begin
+          if (FMaxH <= b4[0, i]) and (FMaxH > b4[0, i - 1]) then
+          begin
+            Bits.Put(b4[1, i], b4[3, i]);
+            if (b4[2, i] <> 0) then
+              Bits.Put(FMaxH - (b4[0, i - 1] + 1), b4[2, i]);
+            Break;
+          end;
+        end;
+        for i := 0 to FDictionarySize - 1 do
+        begin
+          if FDictionary[i].Dw < (-256) then
+          begin
+            Bits.Put($FF, 8);
+            Bits.Put(((-257) - FDictionary[i].Dw), $20);
+            continue;
+          end;
+          if (FDictionary[i].Dw > (-257)) and (FDictionary[i].Dw < 0) then
+          begin
+            Bits.Put($FE, 8);
+            Bits.Put((256 + FDictionary[i].Dw), $8);
+            continue;
+          end;
+          for h := 2 to 7 do
+          begin
+            if (FDictionary[i].Dw <= b3[0, h]) and (FDictionary[i].Dw > b3[0, h - 1]) then
+            begin
+              Bits.Put(b3[1, h], b3[3, h]);
+              if (b3[2, h] <> 0) then
+                Bits.Put((FDictionary[i].Dw - (b3[0, h - 1] + 1)), b3[2, h]);
+              Break;
+            end;
+          end;
+        end;
+        Bits.Put($3E, 6);
+        BmData := TMemoryStream.Create;
+        try
+          Pict := GeneratePicture;
+          try
+     //       Pict.SaveToFile('..\Data\ALL1.BMP');
+            SaveBMPtoCCITT(Pict, BmData, CCITT42D);
+          finally
+            Pict.Free;
+          end;
+          BmData.Position := 0;
+          for i := 1 to 4 do
+          begin
+            if (BmData.Size < b1[0, i]) and (BmData.Size >= (b1[0, i - 1])) then
+            begin
+              Bits.Put(b1[1, i], b1[3, i]);
+              if (b1[1, i] <> 0) then
+                Bits.Put((BmData.Size - b1[0, i - 1]), b1[2, i])
+              else
+                Bits.Put(BmData.Size, b1[2, i]);
+              Break;
+            end;
+          end;
+          Bits.FlushBits;
+          Content.CopyFrom(BmData, BmData.Size);
+        finally
+          BmData.Free;
+        end;
+        Bits.Put(0, 5);
+        for i := 1 to 4 do
+        begin
+          if (FDictionarySize < b1[0, i]) and (FDictionarySize >= (b1[0, i - 1])) then
+          begin
+            Bits.Put(b1[1, i], b1[3, i]);
+            if (b1[1, i] <> 0) then
+              Bits.Put((FDictionarySize - b1[0, i - 1]), b1[2, i])
+            else
+              Bits.Put(FDictionarySize, b1[2, i]);
+            Break;
+          end;
+        end;
+      finally
+        Bits.Free;
+      end;
+      BitStrm.Put(0,32); // Segment Number
+      if Eng = nil then
+        BitStrm.Put($000101,24)
+      else
+        BitStrm.Put($000100,24);
+      BitStrm.Put(Content.Size, 32);
+      BitStrm.FlushBits;
+      Content.Position := 0;
+      Stream.CopyFrom(Content,Content.Size);
+    finally
+      Content.Free;
+    end;
+  finally
+    BitStrm.Free;
+  end;
+end;
+
+function TJBig2SymbolDictionary.GetItem(Index:Integer): TSymbolDictionaryItem;
+begin
+  Result := FDictionary[index];
+end;
+
+end.
