@@ -1,14 +1,3 @@
-{**************************************************
-                                                  
-                   llPDFLib                       
-      Version  6.4.0.1389,   09.07.2016            
-     Copyright (c) 2002-2016  Sybrex Systems      
-     Copyright (c) 2002-2016  Vadim M. Shakun
-               All rights reserved                
-           mailto:em-info@sybrex.com              
-                                                  
-**************************************************}
-
 unit llPDFImage;
 {$i pdf.inc}
 interface
@@ -68,9 +57,6 @@ type
   end;
 
 
-  /// <summary>
-  ///   It describes the options allowing for which JBIG2 compression of black and white images will be held 
-  /// </summary>
 
   TJBIG2Options = class( TPersistent)
   private
@@ -81,30 +67,12 @@ type
 //    FUseSingleDictionary: Boolean;
   public
     constructor Create;
-    /// <summary>
-    ///   Noise level at compression. When the value is 0 then compared characters must be
-    ///   identical, 9 - in this case the size will be identical 
-    /// </summary>
     property LossyLevel: Integer read FLossyLevel write FLossyLevel ;
 
-    /// <summary>
-    ///   When scanning pages noises, which are not true  symbols can often occur
-     /// This Property can delete such noise
-    /// </summary>
     property SkipBlackDots:Boolean read FSkipBlackDots write FSkipBlackDots;
-    /// <summary>
-    ///   The size of black dots, that will be ignored during compressionif SkipBlackDots is set for 
-    ///   positive value
-    /// </summary>
     property BlackDotSize: Integer read FBlackDotSize write FBlackDotSize;
-    /// <summary>
-    ///   In many scanned documents symbols may be within certain areas and tables
-    /// Then if we use icRectangle, it will be "during compression" such tables as a whole,
-    /// Considering the characters withtin, if icImageOnly is used each character is individually cut
-    /// </summary>
     property SymbolExtract:TImgCopyType read FSymbolExtract write FSymbolExtract;
     //    property UseSingleDictionary: Boolean read FUseSingleDictionary write FUseSingleDictionary;
-{#int}    
   end;
 
 
@@ -139,17 +107,13 @@ type
 
   end;
 
-  /// <summary>
-  ///   Managing object which adds images in PDF documents
-  /// </summary>
-  /// <remarks>
-  ///   This object can not be created independently. Property TPDFDocument.Images should beused.
-  /// </remarks>
   TPDFImages = class(TPDFManager)
   private
     FJPEGQuality: Integer;
+    {$ifndef BASE}
     FJBIG2Options: TJBIG2Options;
     FJBIG2Dictionary: TPDFObject;
+    {$endif}
     function Add(Image:TPDFImage):Integer;
     function AddImageWithParams(Image: TGraphic; Compression:
         TImageCompressionType;MaskIndex:Integer = - 1): Integer;
@@ -160,108 +124,17 @@ type
   public
     constructor Create(PDFEngine: TPDFEngine);
     destructor Destroy;override;
-    /// <summary>
-    ///   Adds an image from TGraphic in the generated document taking compression into account. Currently
-    ///   TBitmap and TJPegImage are supported
-    /// </summary>
-    /// <param name="Image">
-    ///   An object that stores the image you want to insert into the document
-    /// </param>
-    /// <param name="Compression">
-    ///   compression type, by which the image will be saved in the document
-    /// </param>
-    /// <returns>
-    ///   Returns index of the saved in the document image.
-    /// </returns>
-    /// <remarks>
-    ///   Since the image can take a large size, it is immediately written to the generated
-    /// output stream or file
-    /// </remarks>
     function AddImage(Image: TGraphic; Compression: TImageCompressionType): Integer; overload;
 
-    /// <summary>
-    ///   Adds an image from file in the generated document according to the compression. Currently
-    ///   bmp and jpeg formats are supported
-    /// </summary>
-    /// <param name="FileName">
-    ///   The file name in which stores the image you want to insert into the document
-    /// </param>
-    /// <param name="Compression">
-    ///   compression type, by which the image will be saved in the document
-    /// </param>
-    /// <returns>
-    ///   Returns the index of the saved in the document image.
-    /// </returns>
-    /// <remarks>
-    ///   Since the image can take a large size, it is immediately written to the generated 
-    /// output stream or file
-    /// </remarks>
     function AddImage(FileName:TFileName; Compression: TImageCompressionType): Integer; overload;
-    /// <summary>
-    ///   In some cases, you want to display in the document not a rectangular image, but some
-    /// Part of it. In this case, we can use a mask. The mask is black and white image,
-    /// Which shows what part of the image, which is used to output the mask is necessary.
-    ///   This function is designed to create a mask in the document
-    /// </summary>
-    /// <param name="Image">
-    ///   An object that stores mask image 
-    /// </param>
-    /// <param name="TransparentColor">
-    ///   color, which is considered transparent in this image
-    /// </param>
-    /// <returns>
-    ///   It returns the index of stored masks.
-    /// </returns>
     function AddImageAsMask(Image: TGraphic; TransparentColor: TColor = -1): Integer;
-    /// <summary>
-    ///   This function saves image with a mask in a document. 
-    /// </summary>
-    /// <param name="Image">
-    ///   An object that stores the image you want to insert into the document
-    /// </param>
-    /// <param name="Compression">
-    ///   compression type, by which the image will be saved in the document
-    /// </param>
-    /// <param name="MaskIndex">
-    ///   Index of the mask to be used with this image further.
-    /// </param>
-    /// <returns>
-    ///   The function returns the index of the mask image 
-    /// </returns>
-    /// <remarks>
-    ///   One and the same mask may be used for multiple images
-    /// </remarks>
     function AddImageWithMask(Image:TGraphic; Compression: TImageCompressionType;MaskIndex: Integer): Integer;
-    /// <summary>
-    ///   In some cases, we know what color in the source image should not be displayed. This
-     /// Function combines two functions such as AddImageAsMask and AddImageWithMask.
-    /// </summary>
-    /// <param name="Image">
-    ///   An object that stores the image you want to insert into the document    
-    /// </param>
-    /// <param name="Compression">
-    ///   compression type, by which the image will be saved in the document
-    /// </param>
-    /// <param name="TransparentColor">
-    ///   color, which is considered transparent in this image
-    /// </param>
-    /// <returns>
-    ///   It returns the index of the image with a transparent color in the generated document
-    /// </returns>
     function AddImageWithTransparency(Image: TGraphic; Compression: TImageCompressionType; TransparentColor: TColor = -1): Integer;
 
-    /// <summary>
-    ///   The compression quality level of the JPEG images in the document. Please note that the image is
-    /// written to the output stream immediately, so the value will be considered only for those
-    /// Images that were added after the change in this value    
-    /// </summary>
     property JPEGQuality: Integer read FJPEGQuality write FJPEGQuality ;
-    /// <summary>
-    ///   The set of options used for JBIG2 compression. Please note that
-    /// Images are recorded in the output stream immediately, so the value will be taken into account
-    /// Only for those images that have been added after the change of the value
-    /// </summary>
+    {$ifndef BASE}
     property JBIG2Options: TJBIG2Options read FJBIG2Options;
+    {$endif}
   end;
 
 
@@ -273,7 +146,7 @@ uses
 {$else}
   llPDFFlate,
 {$endif}
-  llPDFMisc, llPDFResources, llPDFCCITT, llPDFJBIG2,
+  llPDFMisc, llPDFResources, llPDFCCITT, {$ifndef BASE}llPDFJBIG2, {$endif}
   llPDFSecurity, llPDFCrypt;
 
 { TPDFImages }
@@ -349,11 +222,13 @@ begin
   PDFImage.FMaskIndex := MaskIndex;
   PDFImage.Save;
   Result := Add (PDFImage);
+  {$ifndef BASE}
   if TJBig2SymbolDictionary(FJBIG2Dictionary).TotalWidth > 131071 then
   begin
     FEngine.SaveObject(FJBIG2Dictionary);
     TJBig2SymbolDictionary(FJBIG2Dictionary).Clear;
   end;
+  {$endif}
 end;
 
 
@@ -427,7 +302,9 @@ begin
     TPDFImage( FEngine.Resources.Images[i]).Free;
   end;
   FEngine.Resources.Images := nil;
+  {$ifndef BASE}
   TJBig2SymbolDictionary(FJBIG2Dictionary).ClearDictionary;
+  {$endif}
   inherited;
 end;
 
@@ -439,11 +316,13 @@ end;
 
 procedure TPDFImages.Save;
 begin
+  {$ifndef BASE}
   if TJBig2SymbolDictionary(FJBIG2Dictionary).TotalWidth > 0 then
   begin
     FEngine.SaveObject(FJBIG2Dictionary);
     TJBig2SymbolDictionary(FJBIG2Dictionary).Clear;
   end;
+  {$endif}
 end;
 
 function TPDFImages.Add(Image: TPDFImage): Integer;
@@ -482,8 +361,10 @@ var
   J: TJPEGImage;
   B: TBitmap;
   CS: TCompressionStream;
+  {$ifndef BASE}
   Global: TJBig2SymbolDictionary;
   JBIG2Compression : TJBIG2Compression;
+  {$endif}
   pb: PByteArray;
   bb: Byte;
   p: Byte;
@@ -511,7 +392,9 @@ begin
 //  if FOwner.FJBIG2Options.UseSingleDictionary then
 //    Global := TJBig2SymbolDictionary(FOwner.FJBIG2Dictionary)
 //  else
+{$ifndef BASE}
     Global := nil;
+{$endif}
   case Compression of
     itcJpeg:
       begin
@@ -558,7 +441,7 @@ begin
           B.Free;
         end;
       end;
-    itcCCITT3..itcJBIG2:
+    itcCCITT3..{$ifndef BASE}itcJBIG2{$else} itcCCITT4{$endif}:
       begin
         B := TBitmap ( Image );
         FBitPerPixel := 1;
@@ -566,6 +449,7 @@ begin
           itcCCITT3: SaveBMPtoCCITT ( B, FData, CCITT31D );
           itcCCITT32d: SaveBMPtoCCITT ( B, FData, CCITT32D );
           itcCCITT4: SaveBMPtoCCITT ( B, FData, CCITT42D );
+{$ifndef BASE}
           itcJBIG2:
             begin
               JBIG2Compression := TJBIG2Compression.Create(Global,FOwner.JBIG2Options);
@@ -575,6 +459,7 @@ begin
                 JBIG2Compression.Free;
               end;
             end;
+{$endif}            
         end;
       end;
   end;
@@ -602,7 +487,9 @@ begin
   case FCompression of
     itcJpeg: Eng.SaveToStream ( '/Filter /DCTDecode' );
     itcFlate: Eng.SaveToStream ( '/Filter /FlateDecode' );
+{$ifndef BASE}
     itcJBIG2: Eng.SaveToStream ( '/Filter /JBIG2Decode' );
+{$endif}    
   else
     begin
       Eng.SaveToStream ( '/Filter [/CCITTFaxDecode]' );
@@ -614,11 +501,13 @@ begin
     itcCCITT3: Eng.SaveToStream ( '/DecodeParms [<</K 0 /Columns ' + IStr ( FWidth ) + ' /Rows ' + IStr ( FHeight ) + Invert +'>>]' );
     itcCCITT32d: Eng.SaveToStream ( '/DecodeParms [<</K 1 /Columns ' + IStr ( FWidth ) + ' /Rows ' + IStr ( FHeight ) + Invert + '>>]' );
     itcCCITT4: Eng.SaveToStream ( '/DecodeParms [<</K -1 /Columns ' + IStr ( FWidth ) + ' /Rows ' + IStr ( FHeight ) +  Invert + '>>]' );
+{$ifndef BASE}
     itcJBIG2:
       begin
 //        if FOwner.FJBIG2Options.FUseSingleDictionary then
 //          Eng.SaveToStream('/DecodeParms <</JBIG2Globals '+IntToStr(FOwner.FJBIG2Dictionary.ID)+' 0 R >>');
       end;
+{$endif}      
   end;
   Eng.StartStream;
   CryptStream ( FData );
@@ -844,7 +733,7 @@ begin
   FreeMemory(FBuffer);
   inherited;
 end;
-{
+
 procedure TBWImage.SetPixel(X, Y: Integer; const Value: Boolean);
 var
   C, Mask: Cardinal;
@@ -956,7 +845,7 @@ begin
     inc(off, FLineSize);
   end;
 end;
-}
+
 function TBWImage.GetBorder(StartPosition: TImgPoint): TImgBorder;
 type
   TBorderDirection = (bdRight, bdBottom, bdLeft, bdTop);
@@ -1032,7 +921,7 @@ begin
     MakeStep(CurrentPoint,Direction);
   end;
 end;
-{
+
 function TBWImage.GetPixel(X, Y: Integer): Boolean;
 var
   C, Mask: Cardinal;
@@ -1062,7 +951,6 @@ var
   WrkPoint,TmpPoint: TImgPoint;
   Y, X, XLeft, XRight:Integer;
   fnd :Boolean;
-
 
   procedure StackGrow;
   var
@@ -1194,7 +1082,7 @@ begin
     end;
   result := false;
 end;
-)
+
 
 procedure TBWImage.SaveToFile(FileName: String);
 var
@@ -1225,15 +1113,19 @@ end;
 constructor TPDFImages.Create(PDFEngine: TPDFEngine);
 begin
   FJPEGQuality := 80;
+{$ifndef BASE}
   FJBIG2Options := TJBIG2Options.Create;
   FJBIG2Dictionary := TJBig2SymbolDictionary.Create(PDFEngine,FJBIG2Options);
+{$endif}
   inherited Create(PDFEngine);
 end;
 
 destructor TPDFImages.Destroy;
 begin
+{$ifndef BASE}
   FJBIG2Dictionary.Free;
   FJBIG2Options.Free;
+{$endif}
   inherited;
 end;
 
